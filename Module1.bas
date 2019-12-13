@@ -5,7 +5,10 @@ Dim myWorkbook As Workbook
 Dim sourceSheet As Worksheet
 Dim controlSheet As Worksheet
 Dim totalRows() As Range
+Dim batchCols() As Range
 Dim lastRow As Integer
+Dim lastCol As Integer
+Dim firstHeader As Range
 Dim initialRow As Integer
 
 Private Sub initialize()
@@ -14,36 +17,31 @@ Private Sub initialize()
     sourceSheet.Copy After:=sourceSheet
     Set controlSheet = myWorkbook.Sheets("Original weighted (2)")
     controlSheet.Name = "Control"
-    With controlSheet
+    With controlSheet.UsedRange
+        Set firstHeader = .Range("B1").End(xlDown)
         initialRow = .Range("A1").End(xlDown).End(xlDown).Offset(1, 0).Row
-        lastRow = .Cells(.Rows.Count, "A").End(xlUp).Row
+        lastRow = .Rows.Count
+        lastCol = .Columns.Count
     End With
     totalRows = getTotals()
-    
-    
-'    room_data = Range(Range("aboveTable").Offset(1, 0), Range("total").Offset(-1, 0)).Value
-'    room_count = UBound(room_data) / 3
-'    description_count = Range(Range("descriptionField"), Range("measurementField").Offset(-1)).Rows.Count
-'    Application.DisplayAlerts = False
-'    If action = GENERATE_REPORT Then
-'        stat_upper = Range("static_upper").Value
-'        stat_lower = Range("static_lower").Value
-'        Application.StatusBar = "Generating Report in Microsoft Word. Please wait..."
-'    End If
+    batchCols = getbatches()
+    Application.DisplayAlerts = False
 End Sub
 
 Private Sub finalize()
-    sourceSheet.Protect
+    sourceSheet.Activate
+    ' controlSheet.Delete
     Application.StatusBar = ""
     Set myWorkbook = Nothing
     Set sourceSheet = Nothing
-    Set sourceSheet = Nothing
-    Set stat_upper = Nothing
-    Set stat_lower = Nothing
-    Set room_data = Nothing
-    room_count = 0
-    description_count = 0
-    Sheet1.Activate
+    Set controlSheet = Nothing
+    ReDim totalRows(1)
+    ReDim batchCols(1)
+    Set firstHeader = Nothing
+    lastCol = 0
+    lastRow = 0
+    initialRow = 0
+    Application.DisplayAlerts = True
     Application.ScreenUpdating = True
 End Sub
 
@@ -68,6 +66,103 @@ Private Function getTotals()
     getTotals = totals
 End Function
 
+Private Function getbatches()
+    Dim currentBatch As Range
+    Dim currentIndex As Integer
+    Dim batches() As Range
+    
+    currentIndex = -1
+    ReDim batches(2000)
+    With controlSheet
+        Set currentBatch = .Cells(firstHeader.Row, .Columns.Count).End(xlToLeft)
+        While currentBatch.Column >= 2
+            currentIndex = currentIndex + 1
+            Set batches(currentIndex) = currentBatch
+            Set currentBatch = currentBatch.End(xlToLeft)
+        Wend
+    End With
+    ReDim Preserve batches(currentIndex)
+    getbatches = batches
+End Function
+
+Private Sub processBatch(ByVal batch As Range)
+    Dim lastBatchCol As Integer
+    Dim headerRange As Range
+    
+    With controlSheet
+        lastBatchCol = .Cells(initialRow, batch.Column).End(xlToRight).Column
+        Set headerRange = .Range(batch, batch.End(xlDown))
+        headerRange.UnMerge
+        Set headerRange = .Range(headerRange, headerRange.Offset(0, lastBatchCol - batch.Column))
+        headerRange.Copy Destination:=batch.Offset(, 1)
+        With .Range(.Cells(firstHeader.Row, batch.Column), .Cells(lastRow, lastBatchCol))
+            .Font.Name = "Gotham Book"
+            .VerticalAlignment = xlCenter
+            .HorizontalAlignment = xlCenter
+        End With
+    End With
+    processTotals batch, lastBatchCol
+    deleteColumns batch, lastBatchCol
+End Sub
+
+Private Sub deleteColumns(ByVal batch As Range, lastBatchCol As Integer)
+    Dim currentCol As Integer
+    Dim firstCol As Integer
+    
+    firstCol = batch.Column
+    With controlSheet
+        currentCol = lastBatchCol - 1
+        .Columns(currentCol + 2).Delete
+        While currentCol >= firstCol
+            .Columns(currentCol).Delete
+            currentCol = currentCol - 2
+        Wend
+    End With
+End Sub
+
+Private Sub processTotals(ByVal batch As Range, lastBatchCol As Integer)
+    Dim total As Variant
+    Dim batchOffset As Integer
+    Dim currentTotal As Range
+    Dim currentOffset As Integer
+    
+    batchOffset = batch.Column - totalRows(0).Column
+    currentOffset = 0
+    While currentOffset + batch.Column <= lastBatchCol
+        For Each total In totalRows
+            Set currentTotal = total.Offset(, batchOffset).Offset(, currentOffset)
+            With currentTotal.Offset(, 1)
+                .Value = Round(currentTotal.Value / 1000000, 6)
+                .NumberFormat = "0.0"
+            End With
+        Next total
+        currentOffset = currentOffset + 2
+    Wend
+End Sub
+
+Private Sub fixHeaders()
+    Dim currentHeader As Range
+    Dim nextHeader As Range
+    
+    With controlSheet
+        Set currentHeader = .Range("B" & initialRow).End(xlUp)
+        While currentHeader.Row > 1
+            Set nextHeader = currentHeader.Offset(-1)
+            If LCase(Trim(currentHeader.Value)) <> "total" And Trim(currentHeader.Value) <> "" Then
+                .Rows(currentHeader.Row).Delete
+            End If
+            Set currentHeader = nextHeader
+        Wend
+    End With
+End Sub
+
 Sub main()
+    Dim batch As Variant
+    
     initialize
+    For Each batch In batchCols
+        processBatch batch
+    Next batch
+    Call fixHeaders
+    finalize
 End Sub
