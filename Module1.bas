@@ -1,7 +1,7 @@
 Attribute VB_Name = "Module1"
 Option Explicit
 
-Dim myWorkbook As Workbook
+Dim sourceWorkbook As Workbook
 Dim sourceSheet As Worksheet
 Dim controlSheet As Worksheet
 Dim totalRows() As Range
@@ -12,11 +12,25 @@ Dim firstHeader As Range
 Dim initialRow As Integer
 
 Private Sub initialize()
-    Set myWorkbook = Application.ThisWorkbook
-    Set sourceSheet = myWorkbook.Sheets("Original weighted")
-    sourceSheet.Copy After:=sourceSheet
-    Set controlSheet = myWorkbook.Sheets("Original weighted (2)")
-    controlSheet.Name = "Control"
+    Dim dialog As FileDialog
+    Dim dialogResult As Long
+    
+    Set dialog = Application.FileDialog(msoFileDialogFilePicker)
+    With dialog
+        .Title = "Select the source file"
+        .Filters.Clear
+        .Filters.Add "Spreadsheets", "*.xlsx; *.xls", 1
+        dialogResult = .Show
+        If dialogResult <> 0 Then
+            DoEvents
+            Set sourceWorkbook = Workbooks.Open(.SelectedItems(1))
+        End If
+        If sourceWorkbook Is Nothing Then Set sourceWorkbook = Application.ThisWorkbook
+        Set sourceSheet = sourceWorkbook.Sheets(1)
+        sourceSheet.Copy After:=sourceSheet
+        Set controlSheet = sourceWorkbook.Sheets(2)
+        controlSheet.Name = "Control"
+    End With
     With controlSheet.UsedRange
         Set firstHeader = .Range("B1").End(xlDown)
         initialRow = .Range("A1").End(xlDown).End(xlDown).Offset(1, 0).Row
@@ -32,7 +46,7 @@ Private Sub finalize()
     sourceSheet.Activate
     ' controlSheet.Delete
     Application.StatusBar = ""
-    Set myWorkbook = Nothing
+    Set sourceWorkbook = Nothing
     Set sourceSheet = Nothing
     Set controlSheet = Nothing
     ReDim totalRows(1)
@@ -157,6 +171,7 @@ Private Sub fixHeaders()
 End Sub
 
 Sub main()
+Attribute main.VB_ProcData.VB_Invoke_Func = "X\n14"
     Dim batch As Variant
     
     initialize
