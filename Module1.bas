@@ -69,7 +69,7 @@ Private Function getTotals()
     With controlSheet
         Set currentTotal = .Range("B" & lastRow)
         While currentTotal.Row >= initialRow
-            If (IsNumeric(currentTotal.Value) And Trim(currentTotal.Offset(-1, 0).Value) <> "") Then
+            If (IsNumeric(currentTotal.Value) And Trim(currentTotal.Offset(0, -1).Value) = "Total") Then
                 currentIndex = currentIndex + 1
                 Set totals(currentIndex) = currentTotal
             End If
