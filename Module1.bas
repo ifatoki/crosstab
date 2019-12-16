@@ -10,6 +10,12 @@ Dim lastRow As Integer
 Dim lastCol As Integer
 Dim firstHeader As Range
 Dim initialRow As Integer
+Dim fileType As Integer
+Enum FileTypes
+    Default = 0
+    Mean = 1
+    Index = 2
+End Enum
 
 Private Sub initialize()
     Dim dialog As FileDialog
@@ -39,6 +45,7 @@ Private Sub initialize()
     End With
     totalRows = getTotals()
     batchCols = getbatches()
+    fileType = getFileType()
     Application.DisplayAlerts = False
 End Sub
 
@@ -58,6 +65,21 @@ Private Sub finalize()
     Application.DisplayAlerts = True
     Application.ScreenUpdating = True
 End Sub
+
+Private Function getFileType()
+    Dim cellValue As String
+    With sourceSheet
+        cellValue = .Cells(initialRow, .UsedRange.Columns.Count).Offset(-2, 0).Value
+        cellValue = LCase(Trim(cellValue))
+        If cellValue = "mean" Then
+            getFileType = FileTypes.Mean
+        ElseIf cellValue = "index on column %" Then
+            getFileType = FileTypes.Index
+        Else
+            getFileType = FileTypes.Default
+        End If
+    End With
+End Function
 
 Private Function getTotals()
     Dim currentTotal As Range
