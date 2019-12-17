@@ -11,6 +11,7 @@ Dim lastCol As Integer
 Dim firstHeader As Range
 Dim initialRow As Integer
 Dim fileType As Integer
+Dim initialized As Boolean
 Enum FileTypes
     Default = 0
     Mean = 1
@@ -31,7 +32,7 @@ Private Sub initialize()
             DoEvents
             Set sourceWorkbook = Workbooks.Open(.SelectedItems(1))
         End If
-        If sourceWorkbook Is Nothing Then Set sourceWorkbook = Application.ThisWorkbook
+        If sourceWorkbook Is Nothing Then Exit Sub
         Set sourceSheet = sourceWorkbook.Sheets(1)
         sourceSheet.Copy After:=sourceSheet
         Set controlSheet = sourceWorkbook.Sheets(2)
@@ -48,12 +49,11 @@ Private Sub initialize()
     If fileType = FileTypes.Mean Then insertMeanRows
     lastRow = controlSheet.UsedRange.Rows.Count
     batchCols = getbatches()
+    initialized = True
     Application.DisplayAlerts = False
 End Sub
 
 Private Sub finalize()
-    sourceSheet.Activate
-    ' controlSheet.Delete
     Application.StatusBar = ""
     Set sourceWorkbook = Nothing
     Set sourceSheet = Nothing
@@ -237,9 +237,13 @@ Attribute main.VB_ProcData.VB_Invoke_Func = "X\n14"
     Dim batch As Variant
     
     initialize
-    For Each batch In batchCols
-        processBatch batch
-    Next batch
-    Call fixHeaders
+    If initialized = True Then
+        For Each batch In batchCols
+            processBatch batch
+        Next batch
+        Call fixHeaders
+    Else
+        MsgBox "Script stopped. No file selected.", vbOKOnly + vbExclamation, "Cancelled"
+    End If
     finalize
 End Sub
