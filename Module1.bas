@@ -43,9 +43,11 @@ Private Sub initialize()
         lastRow = .Rows.Count
         lastCol = .Columns.Count
     End With
-    totalRows = getTotals()
-    batchCols = getbatches()
     fileType = getFileType()
+    totalRows = getTotals()
+    If fileType = FileTypes.Mean Then insertMeanRows
+    lastRow = controlSheet.UsedRange.Rows.Count
+    batchCols = getbatches()
     Application.DisplayAlerts = False
 End Sub
 
@@ -62,13 +64,14 @@ Private Sub finalize()
     lastCol = 0
     lastRow = 0
     initialRow = 0
+    fileType = FileTypes.Default
     Application.DisplayAlerts = True
     Application.ScreenUpdating = True
 End Sub
 
 Private Function getFileType()
     Dim cellValue As String
-    With sourceSheet
+    With controlSheet
         cellValue = .Cells(initialRow, .UsedRange.Columns.Count).Offset(-2, 0).Value
         cellValue = LCase(Trim(cellValue))
         If cellValue = "mean" Then
@@ -126,11 +129,19 @@ Private Sub processBatch(ByVal batch As Range)
     Dim headerRange As Range
     
     With controlSheet
-        lastBatchCol = .Cells(initialRow, batch.Column).End(xlToRight).Column
+        lastBatchCol = .Cells(initialRow - 2, batch.Column).End(xlToRight).Column
         Set headerRange = .Range(batch, batch.End(xlDown))
         headerRange.UnMerge
         Set headerRange = .Range(headerRange, headerRange.Offset(0, lastBatchCol - batch.Column))
         headerRange.Copy Destination:=batch.Offset(, 1)
+        If fileType = FileTypes.Index Then
+            Dim headerSubRange As Range
+            Dim nextHeader As Range
+            
+            Set nextHeader = batch.Offset(1, 1).End(xlToRight)
+            Set headerSubRange = .Range(nextHeader, .Cells(nextHeader.Row, lastBatchCol))
+            headerSubRange.Copy Destination:=nextHeader.Offset(, 1)
+        End If
         With .Range(.Cells(firstHeader.Row, batch.Column), .Cells(lastRow, lastBatchCol))
             .Font.Name = "Gotham Book"
             .VerticalAlignment = xlCenter
@@ -144,14 +155,22 @@ End Sub
 Private Sub deleteColumns(ByVal batch As Range, lastBatchCol As Integer)
     Dim currentCol As Integer
     Dim firstCol As Integer
+    Dim offsetIncrement As Integer
     
+    offsetIncrement = 2
+    If fileType > FileTypes.Default Then offsetIncrement = 3
     firstCol = batch.Column
     With controlSheet
-        currentCol = lastBatchCol - 1
-        .Columns(currentCol + 2).Delete
+        currentCol = lastBatchCol - (offsetIncrement - 1)
+        If fileType <> FileTypes.Index Then .Columns(currentCol + offsetIncrement).Delete
         While currentCol >= firstCol
             .Columns(currentCol).Delete
-            currentCol = currentCol - 2
+            If fileType = FileTypes.Index And currentCol > firstCol Then
+                .Columns(currentCol).Delete
+            ElseIf fileType = FileTypes.Mean Or (fileType = FileTypes.Index And currentCol = firstCol) Then
+                .Columns(currentCol + 1).Delete
+            End If
+            currentCol = currentCol - offsetIncrement
         Wend
     End With
 End Sub
@@ -161,19 +180,40 @@ Private Sub processTotals(ByVal batch As Range, lastBatchCol As Integer)
     Dim batchOffset As Integer
     Dim currentTotal As Range
     Dim currentOffset As Integer
+    Dim offsetIncrement As Integer
+    Dim conditionalOffset As Integer
     
+    offsetIncrement = 2
+    If fileType > FileTypes.Default Then offsetIncrement = 3
     batchOffset = batch.Column - totalRows(0).Column
     currentOffset = 0
     While currentOffset + batch.Column <= lastBatchCol
         For Each total In totalRows
             Set currentTotal = total.Offset(, batchOffset).Offset(, currentOffset)
-            With currentTotal.Offset(, 1)
+            conditionalOffset = 1
+            If fileType = FileTypes.Index And currentOffset <> 0 Then conditionalOffset = 2
+            With currentTotal.Offset(, conditionalOffset)
                 .Value = Round(currentTotal.Value / 1000000, 6)
                 .NumberFormat = "0.0"
             End With
+            If fileType = FileTypes.Mean Then
+                With currentTotal.Offset(-1, conditionalOffset)
+                    .Value = currentTotal.Offset(, 2).Value
+                    .NumberFormat = "0.00"
+                End With
+            End If
         Next total
-        currentOffset = currentOffset + 2
+        currentOffset = currentOffset + offsetIncrement
     Wend
+End Sub
+
+Private Sub insertMeanRows()
+    Dim total As Variant
+    
+    For Each total In totalRows
+        total.EntireRow.Insert
+        total.Offset(-1, -1).Value = "Mean"
+    Next total
 End Sub
 
 Private Sub fixHeaders()
@@ -184,7 +224,7 @@ Private Sub fixHeaders()
         Set currentHeader = .Range("B" & initialRow).End(xlUp)
         While currentHeader.Row > 1
             Set nextHeader = currentHeader.Offset(-1)
-            If LCase(Trim(currentHeader.Value)) <> "total" And Trim(currentHeader.Value) <> "" Then
+            If Not LCase(Trim(currentHeader.Value)) Like "total*" And Trim(currentHeader.Value) <> "" Then
                 .Rows(currentHeader.Row).Delete
             End If
             Set currentHeader = nextHeader
