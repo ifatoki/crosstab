@@ -193,12 +193,20 @@ Private Sub processTotals(ByVal batch As Range, lastBatchCol As Integer)
             conditionalOffset = 1
             If fileType = FileTypes.Index And currentOffset <> 0 Then conditionalOffset = 2
             With currentTotal.Offset(, conditionalOffset)
-                .Value = Round(currentTotal.Value / 1000000, 6)
+                If IsNumeric(currentTotal.Value) Then
+                    .Value = Round(currentTotal.Value / 1000000, 6)
+                Else
+                    .Value = 0
+                End If
                 .NumberFormat = "0.0"
             End With
             If fileType = FileTypes.Mean Then
                 With currentTotal.Offset(-1, conditionalOffset)
-                    .Value = currentTotal.Offset(, 2).Value
+                    If IsNumeric(currentTotal.Value) Then
+                        .Value = currentTotal.Offset(, 2).Value
+                    Else
+                        .Value = 0
+                    End If
                     .NumberFormat = "0.00"
                 End With
             End If
