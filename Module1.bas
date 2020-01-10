@@ -230,13 +230,7 @@ Private Sub fixHeaders()
     
     With controlSheet
         Set currentHeader = .Range("B" & initialRow).End(xlUp)
-        While currentHeader.Row > 1
-            Set nextHeader = currentHeader.Offset(-1)
-            If Not LCase(Trim(currentHeader.Value)) Like "total*" And Trim(currentHeader.Value) <> "" Then
-                .Rows(currentHeader.Row).Delete
-            End If
-            Set currentHeader = nextHeader
-        Wend
+        .Rows(currentHeader.Row).Delete
     End With
 End Sub
 
