@@ -162,7 +162,7 @@ Private Sub deleteColumns(ByVal batch As Range, lastBatchCol As Integer)
     firstCol = batch.Column
     With controlSheet
         currentCol = lastBatchCol - (offsetIncrement - 1)
-        If fileType <> FileTypes.Index Then .Columns(currentCol + offsetIncrement).Delete
+        .Columns(currentCol + offsetIncrement).Clear
         While currentCol >= firstCol
             .Columns(currentCol).Delete
             If fileType = FileTypes.Index And currentCol > firstCol Then
