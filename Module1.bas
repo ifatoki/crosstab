@@ -55,6 +55,7 @@ End Sub
 
 Private Sub finalize()
     Application.StatusBar = ""
+    If Not controlSheet Is Nothing Then controlSheet.Name = "Output"
     Set sourceWorkbook = Nothing
     Set sourceSheet = Nothing
     Set controlSheet = Nothing
@@ -130,7 +131,7 @@ Private Sub processBatch(ByVal batch As Range)
     
     With controlSheet
         lastBatchCol = .Cells(initialRow - 2, batch.Column).End(xlToRight).Column
-        Set headerRange = .Range(batch, batch.End(xlDown))
+        Set headerRange = .Range(batch, batch.Offset(initialRow - 2 - batch.Row))
         headerRange.UnMerge
         Set headerRange = .Range(headerRange, headerRange.Offset(0, lastBatchCol - batch.Column))
         headerRange.Copy Destination:=batch.Offset(, 1)
