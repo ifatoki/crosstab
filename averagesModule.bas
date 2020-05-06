@@ -8,6 +8,7 @@ Dim controlSheet As Worksheet
 Dim dataGroups() As Range
 Dim lastRow As Integer
 Dim lastCol As Integer
+Dim lastCol2 As Integer
 Dim initialRow As Integer
 Dim initialized As Boolean
 
@@ -35,6 +36,10 @@ Private Sub initialize()
         initialRow = .Range("A1").End(xlDown).End(xlDown).Offset(1, 0).Row
         lastRow = .Rows.Count
         lastCol = .Columns.Count
+        lastCol2 = .Cells(initialRow, 10000).End(xlToLeft).Column
+        If lastCol2 < lastCol Then
+            lastCol = lastCol2
+        End If
     End With
     dataGroups = getDataGroups()
     initialized = True
@@ -88,7 +93,11 @@ Private Function processDataGroup(group)
     Dim unitSize As Integer
     Dim groupValues() As Variant
     Dim i, j As Integer
+    Dim topText As String
+    Dim bottomText As String
     
+    topText = ""
+    bottomText = ""
     width = UBound(group.Value2, 2)
     length = UBound(group.Value2, 1)
     unitSize = CInt(length / 2)
@@ -97,17 +106,22 @@ Private Function processDataGroup(group)
     ReDim bottomValues(1 To 1, 1 To width)
 
     For i = 1 To unitSize
+        topText = topText + group(i, 1).Offset(, -1).Value + " & "
         For j = 1 To width
             topValues(1, j) = topValues(1, j) + groupValues(i, j)
             If groupValues(i, j) = "" Then topValues(1, j) = ""
         Next
     Next
+    topText = Left(topText, Len(topText) - 3)
+    
     For i = unitSize + 2 To length
+        bottomText = bottomText + group(i, 1).Offset(, -1).Value + " & "
         For j = 1 To width
             bottomValues(1, j) = bottomValues(1, j) + groupValues(i, j)
             If groupValues(i, j) = "" Then bottomValues(1, j) = ""
         Next
     Next
+    bottomText = Left(bottomText, Len(bottomText) - 3)
     
     For i = group.Row + length - 1 To group.Row + unitSize + 2
         controlSheet.Rows(i).Delete
@@ -117,9 +131,8 @@ Private Function processDataGroup(group)
     Next
     group.Rows(1).Value2 = topValues
     group.Rows(3).Value2 = bottomValues
-    group.Cells(3, 1).Offset(, -1).Value = "T2B"
-    group.Cells(2, 1).Offset(, -1).Value = "Neutral"
-    group.Cells(1, 1).Offset(, -1).Value = "B2B"
+    group.Cells(3, 1).Offset(, -1).Value = bottomText
+    group.Cells(1, 1).Offset(, -1).Value = topText
 End Function
 
 Sub main()
