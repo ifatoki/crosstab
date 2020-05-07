@@ -12,26 +12,32 @@ Dim lastCol2 As Integer
 Dim initialRow As Integer
 Dim initialized As Boolean
 
-Private Sub initialize()
+Private Sub initialize(Optional srcSheet As Worksheet)
     Dim dialog As FileDialog
     Dim dialogResult As Long
     
     Set dialog = Application.FileDialog(msoFileDialogFilePicker)
     With dialog
-        .Title = "Select the source file"
-        .Filters.Clear
-        .Filters.Add "Spreadsheets", "*.xlsx; *.xls", 1
-        dialogResult = .Show
-        If dialogResult <> 0 Then
-            DoEvents
-            Set sourceWorkbook = Workbooks.Open(.SelectedItems(1))
+        If srcSheet Is Nothing Then
+            .Title = "Select the source file"
+            .Filters.Clear
+            .Filters.Add "Spreadsheets", "*.xlsx; *.xls", 1
+            dialogResult = .Show
+            If dialogResult <> 0 Then
+                DoEvents
+                Set sourceWorkbook = Workbooks.Open(.SelectedItems(1))
+            End If
+            Set sourceSheet = sourceWorkbook.Worksheets("Output")
+        Else
+            Set sourceSheet = srcSheet
+            Set sourceWorkbook = srcSheet.Parent
         End If
-        Set sourceSheet = sourceWorkbook.Worksheets("Output")
         sourceSheet.Copy After:=sourceSheet
         Set controlSheet = sourceWorkbook.Worksheets("Output (2)")
         controlSheet.Name = "Control"
         sourceSheet.Name = "Output1"
     End With
+    
     With controlSheet.UsedRange
         initialRow = .Range("A1").End(xlDown).End(xlDown).Offset(1, 0).Row
         lastRow = .Rows.Count
@@ -49,7 +55,8 @@ End Sub
 
 Private Sub finalize()
     Application.StatusBar = ""
-    If Not controlSheet Is Nothing Then controlSheet.Name = "Output2"
+    If Not sourceSheet Is Nothing Then sourceSheet.Delete
+    If Not controlSheet Is Nothing Then controlSheet.Name = "Output"
     Set sourceWorkbook = Nothing
     Set sourceSheet = Nothing
     Set controlSheet = Nothing
@@ -135,10 +142,10 @@ Private Function processDataGroup(group)
     group.Cells(1, 1).Offset(, -1).Value = topText
 End Function
 
-Sub main()
+Sub main(Optional srcWorksheet As Worksheet)
     Dim group As Variant
     
-    initialize
+    initialize srcWorksheet
     If initialized = True Then
         For Each group In dataGroups
             processDataGroup group

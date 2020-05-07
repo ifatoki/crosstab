@@ -1,7 +1,3 @@
-﻿Private Sub RunScript1Button_Click()
+﻿Private Sub GenerateOutputButton_Click()
     Module1.main
-End Sub
-
-Private Sub RunScript2Button_Click()
-    averagesModule.main
 End Sub

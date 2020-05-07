@@ -54,11 +54,9 @@ Private Sub initialize()
 End Sub
 
 Private Sub finalize()
-    Application.StatusBar = ""
     If Not controlSheet Is Nothing Then controlSheet.Name = "Output"
     Set sourceWorkbook = Nothing
     Set sourceSheet = Nothing
-    Set controlSheet = Nothing
     ReDim totalRows(1)
     ReDim batchCols(1)
     Set firstHeader = Nothing
@@ -66,8 +64,6 @@ Private Sub finalize()
     lastRow = 0
     initialRow = 0
     fileType = FileTypes.Default
-    Application.DisplayAlerts = True
-    Application.ScreenUpdating = True
 End Sub
 
 Private Function getFileType()
@@ -249,4 +245,5 @@ Attribute main.VB_ProcData.VB_Invoke_Func = "X\n14"
         MsgBox "Script stopped. No file selected.", vbOKOnly + vbExclamation, "Cancelled"
     End If
     finalize
+    averagesModule.main controlSheet
 End Sub
