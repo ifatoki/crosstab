@@ -107,7 +107,7 @@ Private Function processDataGroup(group)
     bottomText = ""
     width = UBound(group.Value2, 2)
     length = UBound(group.Value2, 1)
-    unitSize = CInt(length / 2)
+    unitSize = Int(length / 2)
     groupValues = group.Value2
     ReDim topValues(1 To 1, 1 To width)
     ReDim bottomValues(1 To 1, 1 To width)
@@ -130,10 +130,10 @@ Private Function processDataGroup(group)
     Next
     bottomText = Left(bottomText, Len(bottomText) - 3)
     
-    For i = group.Row + length - 1 To group.Row + unitSize + 2
+    For i = group.Row + length - 1 To group.Row + unitSize + 2 Step -1
         controlSheet.Rows(i).Delete
     Next
-    For i = group.Row + unitSize - 2 To group.Row
+    For i = group.Row + unitSize - 2 To group.Row Step -1
         controlSheet.Rows(i).Delete
     Next
     group.Rows(1).Value2 = topValues
