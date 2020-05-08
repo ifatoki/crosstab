@@ -1,18 +1,18 @@
 Attribute VB_Name = "Module1"
 Option Explicit
 
-Dim sourceWorkbook As Workbook
-Dim sourceSheet As Worksheet
-Dim controlSheet As Worksheet
-Dim totalRows() As Range
-Dim batchCols() As Range
-Dim lastRow As Integer
-Dim lastCol As Integer
-Dim firstHeader As Range
-Dim initialRow As Integer
-Dim fileType As Integer
-Dim initialized As Boolean
-Enum FileTypes
+Private sourceWorkbook As Workbook
+Private sourceSheet As Worksheet
+Private controlSheet As Worksheet
+Private totalRows() As Range
+Private batchCols() As Range
+Private lastRow As Integer
+Private lastCol As Integer
+Private firstHeader As Range
+Private initialRow As Integer
+Private fileType As Integer
+Private initialized As Boolean
+Private Enum FileTypes
     Default = 0
     Mean = 1
     Index = 2
@@ -21,7 +21,10 @@ End Enum
 Private Sub initialize()
     Dim dialog As FileDialog
     Dim dialogResult As Long
+    Const ERROR_NO_SOURCE As Long = vbObjectError + 513
     
+    Debug.Print ERROR_NO_SOURCE
+    On Error GoTo errHandler
     Set dialog = Application.FileDialog(msoFileDialogFilePicker)
     With dialog
         .Title = "Select the source file"
@@ -32,7 +35,7 @@ Private Sub initialize()
             DoEvents
             Set sourceWorkbook = Workbooks.Open(.SelectedItems(1))
         End If
-        If sourceWorkbook Is Nothing Then Exit Sub
+        If sourceWorkbook Is Nothing Then Err.Raise ERROR_NO_SOURCE
         Set sourceSheet = sourceWorkbook.Sheets(1)
         sourceSheet.Copy After:=sourceSheet
         Set controlSheet = sourceWorkbook.Sheets(2)
@@ -50,11 +53,21 @@ Private Sub initialize()
     lastRow = controlSheet.UsedRange.Rows.Count
     batchCols = getbatches()
     initialized = True
+    Application.ScreenUpdating = False
     Application.DisplayAlerts = False
+    Exit Sub
+errHandler:
+    Debug.Print Err.Number
+    If Err.Number = ERROR_NO_SOURCE Then
+        MsgBox "Script stopped. No file selected.", vbOKOnly + vbExclamation, "Cancelled"
+    Else
+        MsgBox "Script stopped. Please check the selected file and ensure its compliant to the formatting requirements.", vbOKOnly + vbExclamation, "Invalid File"
+        sourceWorkbook.Close False
+    End If
 End Sub
 
 Private Sub finalize()
-    If Not controlSheet Is Nothing Then controlSheet.Name = "Output"
+    If Not controlSheet Is Nothing And Not controlSheet.Name Like "Output*" Then controlSheet.Name = "Output"
     Set sourceWorkbook = Nothing
     Set sourceSheet = Nothing
     ReDim totalRows(1)
@@ -64,6 +77,8 @@ Private Sub finalize()
     lastRow = 0
     initialRow = 0
     fileType = FileTypes.Default
+    Application.ScreenUpdating = True
+    Application.DisplayAlerts = True
 End Sub
 
 Private Function getFileType()
@@ -231,7 +246,7 @@ Private Sub fixHeaders()
     End With
 End Sub
 
-Sub main()
+Sub main(Optional outputType As Integer = 0)
 Attribute main.VB_ProcData.VB_Invoke_Func = "X\n14"
     Dim batch As Variant
     
@@ -241,9 +256,7 @@ Attribute main.VB_ProcData.VB_Invoke_Func = "X\n14"
             processBatch batch
         Next batch
         Call fixHeaders
-    Else
-        MsgBox "Script stopped. No file selected.", vbOKOnly + vbExclamation, "Cancelled"
+        If outputType <> 0 Then averagesModule.main outputType, controlSheet
+        finalize
     End If
-    finalize
-    averagesModule.main controlSheet
 End Sub

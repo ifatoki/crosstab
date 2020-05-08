@@ -1,3 +1,11 @@
-﻿Private Sub GenerateOutputButton_Click()
+﻿Private Sub GenerateOutput2Button_Click()
+    Module1.main outputTypes.TOP2_BOTTOM2
+End Sub
+
+Private Sub GenerateOutput3Button_Click()
+    Module1.main outputTypes.TOP3_BOTTOM3
+End Sub
+
+Private Sub removeAbsolutesButton_Click()
     Module1.main
 End Sub

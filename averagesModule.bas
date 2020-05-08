@@ -2,15 +2,20 @@ Attribute VB_Name = "averagesModule"
 '@Folder("VBAProject")
 Option Explicit
 
-Dim sourceWorkbook As Workbook
-Dim sourceSheet As Worksheet
-Dim controlSheet As Worksheet
-Dim dataGroups() As Range
-Dim lastRow As Integer
-Dim lastCol As Integer
-Dim lastCol2 As Integer
-Dim initialRow As Integer
-Dim initialized As Boolean
+Public Enum outputTypes
+    TOP2_BOTTOM2 = 1
+    TOP3_BOTTOM3 = 2
+End Enum
+
+Private sourceWorkbook As Workbook
+Private sourceSheet As Worksheet
+Private controlSheet As Worksheet
+Private dataGroups() As Range
+Private lastRow As Integer
+Private lastCol As Integer
+Private lastCol2 As Integer
+Private initialRow As Integer
+Private initialized As Boolean
 
 Private Sub initialize(Optional srcSheet As Worksheet)
     Dim dialog As FileDialog
@@ -33,9 +38,9 @@ Private Sub initialize(Optional srcSheet As Worksheet)
             Set sourceWorkbook = srcSheet.Parent
         End If
         sourceSheet.Copy After:=sourceSheet
-        Set controlSheet = sourceWorkbook.Worksheets("Output (2)")
-        controlSheet.Name = "Control"
+        Set controlSheet = sourceWorkbook.Worksheets(3)
         sourceSheet.Name = "Output1"
+        controlSheet.Name = "Control"
     End With
     
     With controlSheet.UsedRange
@@ -55,7 +60,6 @@ End Sub
 
 Private Sub finalize()
     Application.StatusBar = ""
-    If Not sourceSheet Is Nothing Then sourceSheet.Delete
     If Not controlSheet Is Nothing Then controlSheet.Name = "Output"
     Set sourceWorkbook = Nothing
     Set sourceSheet = Nothing
@@ -92,12 +96,13 @@ Private Function getDataGroups()
     getDataGroups = dataGroups
 End Function
 
-Private Function processDataGroup(group)
+Private Function processDataGroup(group, Optional isTop2 = False)
     Dim topValues() As Variant
     Dim bottomValues() As Variant
     Dim length As Integer
     Dim width As Integer
     Dim unitSize As Integer
+    Dim deleteRowSize As Integer
     Dim groupValues() As Variant
     Dim i, j As Integer
     Dim topText As String
@@ -108,11 +113,14 @@ Private Function processDataGroup(group)
     width = UBound(group.Value2, 2)
     length = UBound(group.Value2, 1)
     unitSize = Int(length / 2)
+    deleteRowSize = unitSize
+    If isTop2 = True Then deleteRowSize = 2
+    
     groupValues = group.Value2
     ReDim topValues(1 To 1, 1 To width)
     ReDim bottomValues(1 To 1, 1 To width)
 
-    For i = 1 To unitSize
+    For i = 1 To deleteRowSize
         topText = topText + group(i, 1).Offset(, -1).Value + " & "
         For j = 1 To width
             topValues(1, j) = topValues(1, j) + groupValues(i, j)
@@ -121,7 +129,7 @@ Private Function processDataGroup(group)
     Next
     topText = Left(topText, Len(topText) - 3)
     
-    For i = unitSize + 2 To length
+    For i = length - deleteRowSize + 1 To length
         bottomText = bottomText + group(i, 1).Offset(, -1).Value + " & "
         For j = 1 To width
             bottomValues(1, j) = bottomValues(1, j) + groupValues(i, j)
@@ -130,25 +138,30 @@ Private Function processDataGroup(group)
     Next
     bottomText = Left(bottomText, Len(bottomText) - 3)
     
-    For i = group.Row + length - 1 To group.Row + unitSize + 2 Step -1
+    For i = group.Row + length - 1 To group.Row + length - deleteRowSize + 1 Step -1
         controlSheet.Rows(i).Delete
     Next
-    For i = group.Row + unitSize - 2 To group.Row Step -1
+    For i = group.Row + deleteRowSize - 2 To group.Row Step -1
         controlSheet.Rows(i).Delete
     Next
+    
+    Dim lastGroupRow As Integer
+    lastGroupRow = length - (2 * (deleteRowSize - 1))
     group.Rows(1).Value2 = topValues
-    group.Rows(3).Value2 = bottomValues
-    group.Cells(3, 1).Offset(, -1).Value = bottomText
+    group.Rows(lastGroupRow).Value2 = bottomValues
+    group.Cells(lastGroupRow, 1).Offset(, -1).Value = bottomText
     group.Cells(1, 1).Offset(, -1).Value = topText
 End Function
 
-Sub main(Optional srcWorksheet As Worksheet)
+Sub main(outputType As Integer, Optional srcWorksheet As Worksheet)
     Dim group As Variant
+    Dim isTop2 As Boolean
     
+    If outputType = outputTypes.TOP2_BOTTOM2 Then isTop2 = True
     initialize srcWorksheet
     If initialized = True Then
         For Each group In dataGroups
-            processDataGroup group
+            processDataGroup group, isTop2
         Next group
     Else
         MsgBox "Script stopped. No file selected.", vbOKOnly + vbExclamation, "Cancelled"
