@@ -2,11 +2,6 @@ Attribute VB_Name = "averagesModule"
 '@Folder("VBAProject")
 Option Explicit
 
-Public Enum outputTypes
-    TOP2_BOTTOM2 = 1
-    TOP3_BOTTOM3 = 2
-End Enum
-
 Private sourceWorkbook As Workbook
 Private sourceSheet As Worksheet
 Private controlSheet As Worksheet

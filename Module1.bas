@@ -1,10 +1,17 @@
 Attribute VB_Name = "Module1"
 Option Explicit
 
+Public Enum outputTypes
+    TOP2_BOTTOM2 = 2
+    TOP3_BOTTOM3 = 3
+    PERCENT_SORTED = 1
+End Enum
+
 Private sourceWorkbook As Workbook
 Private sourceSheet As Worksheet
 Private controlSheet As Worksheet
 Private totalRows() As Range
+Private totalRowsInt() As Integer
 Private batchCols() As Range
 Private lastRow As Integer
 Private lastCol As Integer
@@ -49,6 +56,7 @@ Private Sub initialize()
     End With
     fileType = getFileType()
     totalRows = getTotals()
+    totalRowsInt = getTotalRows(totalRows)
     If fileType = FileTypes.Mean Then insertMeanRows
     lastRow = controlSheet.UsedRange.Rows.Count
     batchCols = getbatches()
@@ -117,6 +125,19 @@ Private Function getTotals()
     getTotals = totals
 End Function
 
+Private Function getTotalRows(totalRows)
+    Dim rows() As Integer
+    Dim index As Integer
+    ReDim rows(UBound(totalRows))
+    
+    index = 0
+    While index <= UBound(totalRows)
+        rows(index) = totalRows(index).Row
+        index = index + 1
+    Wend
+    getTotalRows = rows
+End Function
+
 Private Function getbatches()
     Dim currentBatch As Range
     Dim currentIndex As Integer
@@ -136,7 +157,7 @@ Private Function getbatches()
     getbatches = batches
 End Function
 
-Private Sub processBatch(ByVal batch As Range)
+Private Sub processBatch(ByVal batch As Range, Optional isPercentSort As Boolean = False)
     Dim lastBatchCol As Integer
     Dim headerRange As Range
     
@@ -161,13 +182,14 @@ Private Sub processBatch(ByVal batch As Range)
         End With
     End With
     processTotals batch, lastBatchCol
-    deleteColumns batch, lastBatchCol
+    deleteColumns batch, lastBatchCol, isPercentSort
 End Sub
 
-Private Sub deleteColumns(ByVal batch As Range, lastBatchCol As Integer)
+Private Sub deleteColumns(ByVal batch As Range, lastBatchCol As Integer, isPercentSort As Boolean)
     Dim currentCol As Integer
     Dim firstCol As Integer
     Dim offsetIncrement As Integer
+    Dim firstRow As Integer
     
     offsetIncrement = 2
     If fileType > FileTypes.Default Then offsetIncrement = 3
@@ -181,6 +203,32 @@ Private Sub deleteColumns(ByVal batch As Range, lastBatchCol As Integer)
                 .Columns(currentCol).Delete
             ElseIf fileType = FileTypes.Mean Or (fileType = FileTypes.Index And currentCol = firstCol) Then
                 .Columns(currentCol + 1).Delete
+            End If
+            If isPercentSort Then
+                Dim count As Integer
+                
+                count = LBound(totalRows)
+                .Columns(currentCol).Insert Shift:=xlToRight
+                While count <= UBound(totalRows)
+                    Dim sortKeyRange As Range
+                    
+                    firstRow = initialRow
+                    If count < UBound(totalRows) Then firstRow = totalRowsInt(count + 1) + 2
+                    Set sortKeyRange = .Range(.Cells(firstRow, currentCol + 1), .Cells(totalRowsInt(count) - 1, currentCol + 1))
+                    
+                    .Range("A" & firstRow & ":A" & totalRowsInt(count) - 1).Copy .Cells(firstRow, currentCol)
+                    .Sort.SortFields.Clear
+                    .Sort.SortFields.Add Key:=sortKeyRange, SortOn:=xlSortOnValues, Order:= _
+                        xlDescending, DataOption:=xlSortNormal
+                    With .Sort
+                        .SetRange Range(sortKeyRange.Offset(, -1), sortKeyRange)
+                        .MatchCase = False
+                        .Orientation = xlTopToBottom
+                        .SortMethod = xlPinYin
+                        .Apply
+                    End With
+                    count = count + 1
+                Wend
             End If
             currentCol = currentCol - offsetIncrement
         Wend
@@ -253,10 +301,10 @@ Attribute main.VB_ProcData.VB_Invoke_Func = "X\n14"
     initialize
     If initialized = True Then
         For Each batch In batchCols
-            processBatch batch
+            processBatch batch, outputType = outputTypes.PERCENT_SORTED
         Next batch
         Call fixHeaders
-        If outputType <> 0 Then averagesModule.main outputType, controlSheet
+        If outputType > 1 Then averagesModule.main outputType, controlSheet
         finalize
     End If
 End Sub
