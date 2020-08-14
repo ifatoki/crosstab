@@ -215,9 +215,12 @@ Private Sub deleteColumns(ByVal batch As Range, lastBatchCol As Integer, isPerce
                     firstRow = initialRow
                     If count < UBound(totalRows) Then firstRow = totalRowsInt(count + 1) + 2
                     Set sortKeyRange = .Range(.Cells(firstRow, currentCol + 1), .Cells(totalRowsInt(count) - 1, currentCol + 1))
+                    sortKeyRange.ColumnWidth = 9.98
                     If currentCol <= 2 Then
                         Set sortKeyRange = .Range(.Cells(firstRow, currentCol), .Cells(totalRowsInt(count) - 1, currentCol))
+                        sortKeyRange.ColumnWidth = 9.98
                     Else
+                        sortKeyRange.Offset(, -1).ColumnWidth = 9.98
                         .Range("A" & firstRow & ":A" & totalRowsInt(count) - 1).Copy .Cells(firstRow, currentCol)
                     End If
                     .Sort.SortFields.Clear
