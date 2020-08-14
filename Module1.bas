@@ -208,15 +208,18 @@ Private Sub deleteColumns(ByVal batch As Range, lastBatchCol As Integer, isPerce
                 Dim count As Integer
                 
                 count = LBound(totalRows)
-                .Columns(currentCol).Insert Shift:=xlToRight
+                If currentCol > 2 Then .Columns(currentCol).Insert Shift:=xlToRight
                 While count <= UBound(totalRows)
                     Dim sortKeyRange As Range
                     
                     firstRow = initialRow
                     If count < UBound(totalRows) Then firstRow = totalRowsInt(count + 1) + 2
                     Set sortKeyRange = .Range(.Cells(firstRow, currentCol + 1), .Cells(totalRowsInt(count) - 1, currentCol + 1))
-                    
-                    .Range("A" & firstRow & ":A" & totalRowsInt(count) - 1).Copy .Cells(firstRow, currentCol)
+                    If currentCol <= 2 Then
+                        Set sortKeyRange = .Range(.Cells(firstRow, currentCol), .Cells(totalRowsInt(count) - 1, currentCol))
+                    Else
+                        .Range("A" & firstRow & ":A" & totalRowsInt(count) - 1).Copy .Cells(firstRow, currentCol)
+                    End If
                     .Sort.SortFields.Clear
                     .Sort.SortFields.Add Key:=sortKeyRange, SortOn:=xlSortOnValues, Order:= _
                         xlDescending, DataOption:=xlSortNormal
