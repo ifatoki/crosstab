@@ -311,6 +311,7 @@ Attribute main.VB_ProcData.VB_Invoke_Func = "X\n14"
         Next batch
         Call fixHeaders
         If outputType > 1 Then averagesModule.main outputType, controlSheet
+        controlSheet.Cells.Font.Name = "Gotham Book"
         finalize
     End If
 End Sub
