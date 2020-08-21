@@ -157,7 +157,7 @@ Private Function getbatches()
     getbatches = batches
 End Function
 
-Private Sub processBatch(ByVal batch As Range, Optional isPercentSort As Boolean = False)
+Private Sub processBatch(ByVal batch As Range, Optional isPercentSort As Boolean = False, Optional includeCounts As Boolean = False)
     Dim lastBatchCol As Integer
     Dim headerRange As Range
     
@@ -166,8 +166,8 @@ Private Sub processBatch(ByVal batch As Range, Optional isPercentSort As Boolean
         Set headerRange = .Range(batch, batch.Offset(initialRow - 2 - batch.Row))
         headerRange.UnMerge
         Set headerRange = .Range(headerRange, headerRange.Offset(0, lastBatchCol - batch.Column))
-        headerRange.Copy Destination:=batch.Offset(, 1)
-        If fileType = FileTypes.Index Then
+        If Not includeCounts Then headerRange.Copy Destination:=batch.Offset(, 1)
+        If fileType = FileTypes.index Then
             Dim headerSubRange As Range
             Dim nextHeader As Range
             
@@ -181,11 +181,11 @@ Private Sub processBatch(ByVal batch As Range, Optional isPercentSort As Boolean
             .HorizontalAlignment = xlCenter
         End With
     End With
-    processTotals batch, lastBatchCol
-    deleteColumns batch, lastBatchCol, isPercentSort
+    processTotals batch, lastBatchCol, includeCounts
+    deleteColumns batch, lastBatchCol, isPercentSort, includeCounts
 End Sub
 
-Private Sub deleteColumns(ByVal batch As Range, lastBatchCol As Integer, isPercentSort As Boolean)
+Private Sub deleteColumns(ByVal batch As Range, lastBatchCol As Integer, Optional isPercentSort As Boolean = False, Optional includeCounts As Boolean = False)
     Dim currentCol As Integer
     Dim firstCol As Integer
     Dim offsetIncrement As Integer
@@ -198,11 +198,13 @@ Private Sub deleteColumns(ByVal batch As Range, lastBatchCol As Integer, isPerce
         currentCol = lastBatchCol - (offsetIncrement - 1)
         .Columns(currentCol + offsetIncrement).Clear
         While currentCol >= firstCol
-            .Columns(currentCol).Delete
-            If fileType = FileTypes.Index And currentCol > firstCol Then
+            If Not includeCounts Then
                 .Columns(currentCol).Delete
-            ElseIf fileType = FileTypes.Mean Or (fileType = FileTypes.Index And currentCol = firstCol) Then
-                .Columns(currentCol + 1).Delete
+                If fileType = FileTypes.index And currentCol > firstCol Then
+                    .Columns(currentCol).Delete
+                ElseIf fileType = FileTypes.Mean Or (fileType = FileTypes.index And currentCol = firstCol) Then
+                    .Columns(currentCol + 1).Delete
+                End If
             End If
             If isPercentSort Then
                 Dim count As Integer
@@ -211,6 +213,7 @@ Private Sub deleteColumns(ByVal batch As Range, lastBatchCol As Integer, isPerce
                 If currentCol > 2 Then .Columns(currentCol).Insert Shift:=xlToRight
                 While count <= UBound(totalRows)
                     Dim sortKeyRange As Range
+                    Dim sortRange As Range
                     
                     firstRow = initialRow
                     If count < UBound(totalRows) Then firstRow = totalRowsInt(count + 1) + 2
@@ -223,11 +226,16 @@ Private Sub deleteColumns(ByVal batch As Range, lastBatchCol As Integer, isPerce
                         sortKeyRange.Offset(, -1).ColumnWidth = 9.98
                         .Range("A" & firstRow & ":A" & totalRowsInt(count) - 1).Copy .Cells(firstRow, currentCol)
                     End If
+                    Set sortRange = Range(sortKeyRange.Offset(, -1), sortKeyRange)
+                    If includeCounts Then
+                        Set sortKeyRange = sortKeyRange.Offset(, 1)
+                        Set sortRange = Range(sortKeyRange.Offset(, -2), sortKeyRange)
+                    End If
                     .Sort.SortFields.Clear
                     .Sort.SortFields.Add Key:=sortKeyRange, SortOn:=xlSortOnValues, Order:= _
                         xlDescending, DataOption:=xlSortNormal
                     With .Sort
-                        .SetRange Range(sortKeyRange.Offset(, -1), sortKeyRange)
+                        .SetRange sortRange
                         .MatchCase = False
                         .Orientation = xlTopToBottom
                         .SortMethod = xlPinYin
@@ -241,7 +249,7 @@ Private Sub deleteColumns(ByVal batch As Range, lastBatchCol As Integer, isPerce
     End With
 End Sub
 
-Private Sub processTotals(ByVal batch As Range, lastBatchCol As Integer)
+Private Sub processTotals(ByVal batch As Range, lastBatchCol As Integer, Optional includeCounts As Boolean = False)
     Dim total As Variant
     Dim batchOffset As Integer
     Dim currentTotal As Range
@@ -257,7 +265,11 @@ Private Sub processTotals(ByVal batch As Range, lastBatchCol As Integer)
         For Each total In totalRows
             Set currentTotal = total.Offset(, batchOffset).Offset(, currentOffset)
             conditionalOffset = 1
-            If fileType = FileTypes.Index And currentOffset <> 0 Then conditionalOffset = 2
+            If includeCounts Then
+                currentTotal.NumberFormat = "0.0,,""M"""
+                GoTo continue
+            End If
+            If fileType = FileTypes.index And currentOffset <> 0 Then conditionalOffset = 2
             With currentTotal.Offset(, conditionalOffset)
                 If IsNumeric(currentTotal.Value) Then
                     .Value = Round(currentTotal.Value / 1000000, 6)
@@ -273,9 +285,10 @@ Private Sub processTotals(ByVal batch As Range, lastBatchCol As Integer)
                     Else
                         .Value = 0
                     End If
-                    .NumberFormat = "0.00"
+                    .NumberFormat = "0.0"
                 End With
             End If
+continue:
         Next total
         currentOffset = currentOffset + offsetIncrement
     Wend
@@ -300,16 +313,18 @@ Private Sub fixHeaders()
     End With
 End Sub
 
-Sub main(Optional outputType As Integer = 0)
+Sub main(Optional outputType As Integer = 0, Optional includeCounts As Boolean = False)
 Attribute main.VB_ProcData.VB_Invoke_Func = "X\n14"
     Dim batch As Variant
+    Dim isPercentSort As Boolean
     
     initialize
+    isPercentSort = outputType = outputTypes.PERCENT_SORTED
     If initialized = True Then
         For Each batch In batchCols
-            processBatch batch, outputType = outputTypes.PERCENT_SORTED
+            processBatch batch, isPercentSort, includeCounts
         Next batch
-        Call fixHeaders
+        If Not includeCounts Then Call fixHeaders
         If outputType > 1 Then averagesModule.main outputType, controlSheet
         controlSheet.Cells.Font.Name = "Gotham Book"
         finalize

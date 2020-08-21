@@ -11,5 +11,5 @@ Private Sub removeAbsolutesButton_Click()
 End Sub
 
 Private Sub SortPercentagesButton_Click()
-    Module1.main outputTypes.PERCENT_SORTED
+    Module1.main outputTypes.PERCENT_SORTED, countsCheckBox.Value
 End Sub
