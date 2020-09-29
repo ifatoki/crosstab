@@ -230,6 +230,7 @@ Private Sub deleteColumns(ByVal batch As Range, lastBatchCol As Integer, Optiona
                     If includeCounts Then
                         Set sortKeyRange = sortKeyRange.Offset(, 1)
                         Set sortRange = Range(sortKeyRange.Offset(, -2), sortKeyRange)
+                        sortKeyRange.Offset(, -1).NumberFormat = "0.0,,""M"""
                     End If
                     .Sort.SortFields.Clear
                     .Sort.SortFields.Add Key:=sortKeyRange, SortOn:=xlSortOnValues, Order:= _
